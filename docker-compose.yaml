@@ -1,0 +1,36 @@
+version: "3"
+
+services:
+  # frontend:
+  #   build:
+  #     context: ./frontend
+  #     dockerfile: Dockerfile
+  #   container_name: url-shortener-frontend
+  #   ports:
+  #     - "5000:5000"
+  #   volumes:
+  #   # to make changes dynamically without reloading docker compose
+  #     - ./frontend/src:/app/src
+  #     - ./frontend/index.html:/app/index.html
+  #   depends_on:
+  #     - backend
+
+  # backend: 
+  #   build: 
+  #     context: ./backend
+  #     dockerfile: Dockerfile
+  #   container_name: url-shortener-backend
+  #   ports: 
+  #     - "3000:3000"
+  #   depends_on:
+  #     - database
+
+  database: 
+    build: 
+      context: ./db
+      dockerfile: Dockerfile
+    container_name: url-shortener-database
+    ports: 
+      - "6383:6379"
+    volumes:
+      - ./db/data:/data
