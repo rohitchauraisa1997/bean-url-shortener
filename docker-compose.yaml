@@ -1,17 +1,17 @@
 version: "3"
 
 services:
-  # frontend:
-  #   build:
-  #     context: ./frontend
-  #     dockerfile: Dockerfile
-  #   container_name: url-shortener-frontend
-  #   ports:
-  #     - "5000:5000"
-  #   volumes:
-  #   # to make changes dynamically without reloading docker compose
-  #     - ./frontend/src:/app/src
-  #     - ./frontend/index.html:/app/index.html
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: url-shortener-frontend
+    ports:
+      - "5000:5000"
+    volumes:
+    # to make changes dynamically without reloading docker compose
+      - ./frontend/src:/app/src
+      - ./frontend/index.html:/app/index.html
   #   depends_on:
   #     - backend
 
@@ -25,12 +25,28 @@ services:
   #   depends_on:
   #     - database
 
-  database: 
+  database-redis:
     build: 
-      context: ./db
+      context: ./db/redis
       dockerfile: Dockerfile
-    container_name: url-shortener-database
+    container_name: url-shortener-redis-db
     ports: 
-      - "6383:6379"
+      - "6384:6379"
     volumes:
-      - ./db/data:/data
+      - ./db/redis/data:/data
+
+  database-mysql:
+    build: 
+      context: ./db/mysql
+      dockerfile: Dockerfile
+    container_name: url-shortener-mysql-db
+    ports:
+      - "65333:65333"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: local
+      MYSQL_PASSWORD: root
+      MYSQL_TCP_PORT: 65333
+    volumes:
+      - ./db/mysql:/docker-entrypoint-initdb.d
+      - ./db/mysql/data:/var/lib/mysql:delegated

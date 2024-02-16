@@ -4,14 +4,14 @@ import (
 	"context"
 	"time"
 
-	// "github.com/retail-ai-inc/bean/trace"
+	// bean "github.com/retail-ai-inc/bean/v2/trace"
 	"backend/repositories"
 )
 
 type UserService interface {
 	IsUserApiQuotaRemaining(ctx context.Context, userIp string) (bool, error)
 	GetUserTTL(ctx context.Context, uerIp string) (time.Duration, error)
-	DecrementApiQouta(ctx context.Context, userIp string) error
+	AddUrlToUserKeyAndDecrementApiQouta(ctx context.Context, userIp string, shortenedUrl string) error
 }
 
 type userService struct {
@@ -46,7 +46,7 @@ func (service *userService) GetUserTTL(ctx context.Context, userIp string) (time
 	return ttl, nil
 }
 
-func (service *userService) DecrementApiQouta(ctx context.Context, userIp string) error {
-	service.userRepository.DecrementQuota(ctx, userIp)
+func (service *userService) AddUrlToUserKeyAndDecrementApiQouta(ctx context.Context, userIp string, shortenedUrl string) error {
+	service.userRepository.AddUrlToUserKeyAndDecrementApiQouta(ctx, userIp, shortenedUrl)
 	return nil
 }

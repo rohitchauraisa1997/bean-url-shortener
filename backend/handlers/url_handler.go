@@ -3,17 +3,20 @@ package handlers
 import (
 	"backend/models"
 	"backend/services"
+	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
-	ferror "github.com/retail-ai-inc/bean/error"
+	ferror "github.com/retail-ai-inc/bean/v2/error"
 	"github.com/spf13/viper"
 
 	"github.com/labstack/echo/v4"
 )
 
 type UrlHandler interface {
-	GetUrlResolutionAnalytics(c echo.Context) error
+	GetUrlResolutionAnalyticsForUser(c echo.Context) error
+	GetUrlResolutionAnalyticsForAllUsers(c echo.Context) error
 	ShortenUrl(c echo.Context) error
 	ResolveUrl(c echo.Context) error
 }
@@ -30,9 +33,22 @@ func NewUrlHandler(urlSvc services.UrlService, userSvc services.UserService) *ur
 	}
 }
 
-func (handler *urlHandler) GetUrlResolutionAnalytics(c echo.Context) error {
+func (handler *urlHandler) GetUrlResolutionAnalyticsForAllUsers(c echo.Context) error {
 	tctx := c.Request().Context()
+
 	resp, err := handler.urlService.GetAnalytics(tctx)
+	if err != nil {
+		panic(err)
+	}
+
+	return c.JSON(http.StatusOK, resp)
+}
+
+func (handler *urlHandler) GetUrlResolutionAnalyticsForUser(c echo.Context) error {
+	tctx := c.Request().Context()
+	userId := fmt.Sprintf("%d", c.Get("userId"))
+
+	resp, err := handler.urlService.GetAnalyticsForUser(tctx, userId)
 	if err != nil {
 		panic(err)
 	}
@@ -54,8 +70,9 @@ func (handler *urlHandler) ShortenUrl(c echo.Context) error {
 	if err := c.Validate(bodyParams); err != nil {
 		return err
 	}
-	userIp := c.RealIP()
 
+	userId := c.Get("userId").(uint64)
+	userIp := strconv.FormatUint(userId, 10)
 	var shortenedUrl string
 	quotaRemaining, err := handler.userService.IsUserApiQuotaRemaining(tctx, userIp)
 	if err != nil {
@@ -76,8 +93,10 @@ func (handler *urlHandler) ShortenUrl(c echo.Context) error {
 	if err != nil {
 		panic(err)
 	}
-	handler.userService.DecrementApiQouta(tctx, userIp)
-
+	err = handler.userService.AddUrlToUserKeyAndDecrementApiQouta(tctx, userIp, shortenedUrl)
+	if err != nil {
+		panic(err)
+	}
 	res := models.Response{
 		CustomShort: viper.GetString("backend.domain") + "/" + shortenedUrl,
 		URL:         bodyParams.Url,

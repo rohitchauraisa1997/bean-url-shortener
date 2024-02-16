@@ -1,5 +1,5 @@
 # Use a Node.js base image
-FROM node:20.3.0
+FROM node:21-alpine3.18
 
 # Set the working directory inside the container [prevents unnecessary reloads]
 WORKDIR /app

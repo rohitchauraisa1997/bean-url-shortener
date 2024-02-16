@@ -27,7 +27,9 @@ import (
 
 // UserJWTTokenData Stores the user information
 type UserJWTTokenData struct {
-	ID uint64
+	UserId    uint64 `json:"userId"`
+	UserEmail string `json:"userEmail"`
+	UserName  string `json:"userName"`
 	/* Add your own data here */
 	jwt.StandardClaims
 }

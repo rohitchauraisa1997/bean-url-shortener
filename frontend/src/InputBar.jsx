@@ -10,26 +10,8 @@ function InputBar(props){
 
     const handleRegisterUrl = () =>{
         {   
-            console.log("here1");
-            var clientIp = ''
-            fetch("http://localhost:8888/client-ip",
-                {
-                    method:"GET",
-                    headers:{
-                        "Content-Type":"application/json"
-                    }
-                }).then(response=>{
-                    return response.json()
-                }).then(data=>{
-                    clientIp = data.clientIp
-                    console.log("clientIp after", clientIp);
-                }).catch(error => {
-                    // Handle any errors that occurred during the fetch
-                    console.error('Fetch error:', error);
-                    window.alert(error.message);
-                })
-            
-            fetch("http://localhost:8888/api/shorten",
+            console.log("here1",props);
+            fetch("http://localhost:3002/url-shortener/api/shorten",
                 {
                     method:"POST",
                     body: JSON.stringify({
@@ -37,7 +19,8 @@ function InputBar(props){
                         "expiry":parseInt(customExpiry),
                     }),
                     headers:{
-                        "Content-Type":"application/json"
+                        "Content-Type":"application/json",
+                        "Authorization": "Bearer " + localStorage.getItem("token")
                     }
                 }
             ).then(response => {
@@ -61,12 +44,13 @@ function InputBar(props){
                         "url":data.url,
                         "urlHits":0,
                         "ttl":data.expiry,
-                        "createdBy":clientIp,
                     }
                 }
                 // Initialize the updatedResponseObjects with responseObject
                 let updatedResponseObjects = [responseObject];
-
+                console.log("props.urlDetailRows");
+                console.log(props.urlDetailRows);
+                console.log("props.urlDetailRows");
                 // If props.urlDetailRows is not empty, append the new object to it
                 if (props.urlDetailRows && props.urlDetailRows.length > 0) {
                     updatedResponseObjects = [...props.urlDetailRows, responseObject];

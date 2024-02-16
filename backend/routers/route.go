@@ -25,28 +25,31 @@ import (
 	"net/http"
 
 	"backend/handlers"
+	"backend/middlewares"
 	"backend/repositories"
 	"backend/services"
 
 	"github.com/labstack/echo/v4"
-	"github.com/retail-ai-inc/bean"
+	bean "github.com/retail-ai-inc/bean/v2"
+	"github.com/retail-ai-inc/bean/v2/store/redis"
+	"github.com/spf13/viper"
 )
 
 type Repositories struct {
-	exampleRepo repositories.ExampleRepository
-	urlRepo     repositories.UrlRepository // added by bean
-	userRepo    repositories.UserRepository
+	userauthRepo repositories.UserauthRepository // added by bean
+	urlRepo      repositories.UrlRepository      // added by bean
+	userRepo     repositories.UserRepository
 }
 
 type Services struct {
-	exampleSvc services.ExampleService
-	urlSvc     services.UrlService // added by bean
-	userSvc    services.UserService
+	userauthSvc services.UserauthService // added by bean
+	urlSvc      services.UrlService      // added by bean
+	userSvc     services.UserService
 }
 
 type Handlers struct {
-	exampleHdlr handlers.ExampleHandler
-	urlHdlr     handlers.UrlHandler // added by bean
+	userauthHdlr handlers.UserauthHandler // added by bean
+	urlHdlr      handlers.UrlHandler      // added by bean
 }
 
 func Init(b *bean.Bean) {
@@ -54,20 +57,20 @@ func Init(b *bean.Bean) {
 	e := b.Echo
 
 	repos := &Repositories{
-		exampleRepo: repositories.NewExampleRepository(b.DBConn),
-		urlRepo:     repositories.NewUrlRepository(b.DBConn.MasterRedisDB), // added by bean
-		userRepo:    repositories.NewUserRepository(b.DBConn.MasterRedisDB),
+		userauthRepo: repositories.NewUserauthRepository(b.DBConn.MasterMySQLDB), // added by bean
+		urlRepo:      repositories.NewUrlRepository(redis.NewMasterCache(b.DBConn.MasterRedisDB, viper.GetString("database.redis.prefix"))),
+		userRepo:     repositories.NewUserRepository(redis.NewMasterCache(b.DBConn.MasterRedisDB, viper.GetString("database.redis.prefix"))),
 	}
 
 	svcs := &Services{
-		exampleSvc: services.NewExampleService(repos.exampleRepo),
-		urlSvc:     services.NewUrlService(repos.urlRepo), // added by bean
-		userSvc:    services.NewUserService(repos.userRepo),
+		userauthSvc: services.NewUserauthService(repos.userauthRepo), // added by bean
+		urlSvc:      services.NewUrlService(repos.urlRepo),           // added by bean
+		userSvc:     services.NewUserService(repos.userRepo),
 	}
 
 	hdlrs := &Handlers{
-		exampleHdlr: handlers.NewExampleHandler(svcs.exampleSvc),
-		urlHdlr:     handlers.NewUrlHandler(svcs.urlSvc, svcs.userSvc), // added by bean
+		userauthHdlr: handlers.NewUserauthHandler(svcs.userauthSvc),     // added by bean
+		urlHdlr:      handlers.NewUrlHandler(svcs.urlSvc, svcs.userSvc), // added by bean
 	}
 
 	// Default index page goes to above JSON (/json) index page.
@@ -77,21 +80,20 @@ func Init(b *bean.Bean) {
 		})
 	})
 
-	// IMPORTANT: Just a JSON response index page. Please change or update it if you want.
-	e.GET("/json", hdlrs.exampleHdlr.JSONIndex)
+	user := e.Group("/user")
+	user.POST("/signup", hdlrs.userauthHdlr.UserSignUp)
+	user.POST("/signin", hdlrs.userauthHdlr.UserSignIn)
+	user.GET("/me", hdlrs.userauthHdlr.GetCurrentUserViaJWT)
 
-	// IMPORTANT: Just a HTML response index page. Please change or update it if you want.
-	e.GET("/html", hdlrs.exampleHdlr.HTMLIndex)
-
-	// Example of using validator.
-	e.POST("/example", hdlrs.exampleHdlr.Validate)
-
-	e.GET("/admin/route/resolutions/analytics", hdlrs.urlHdlr.GetUrlResolutionAnalytics)
-	e.GET("/client-ip", func(c echo.Context) error {
+	urlShortener := e.Group("/url-shortener")
+	urlShortener.Use(middlewares.JWTMiddleware())
+	urlShortener.GET("/resolutions/analytics", hdlrs.urlHdlr.GetUrlResolutionAnalyticsForUser)
+	urlShortener.GET("/client-ip", func(c echo.Context) error {
 		return c.JSON(http.StatusOK, map[string]string{
 			"clientIp": c.RealIP(),
 		})
 	})
+	urlShortener.POST("/api/shorten", hdlrs.urlHdlr.ShortenUrl)
 	e.GET("/:url", hdlrs.urlHdlr.ResolveUrl)
-	e.POST("/api/shorten", hdlrs.urlHdlr.ShortenUrl)
+	urlShortener.GET("/admin/resolutions/analytics", hdlrs.urlHdlr.GetUrlResolutionAnalyticsForAllUsers)
 }

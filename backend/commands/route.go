@@ -27,10 +27,10 @@ import (
 	"strings"
 
 	"backend/routers"
-	
+
 	"github.com/getsentry/sentry-go"
 	"github.com/olekukonko/tablewriter"
-	"github.com/retail-ai-inc/bean"
+	bean "github.com/retail-ai-inc/bean/v2"
 	"github.com/spf13/cobra"
 )
 

@@ -26,9 +26,8 @@ package gopher
 
 import (
 	"errors"
-	"fmt"
 
-	"github.com/retail-ai-inc/bean"
+	bean "github.com/retail-ai-inc/bean/v2"
 	"github.com/spf13/cobra"
 )
 
@@ -59,7 +58,6 @@ func NewHellowWorld() {
 
 func helloWorld(h string) error {
 	if h == "hello" {
-		fmt.Println("hellow world")
 		return nil
 	}
 

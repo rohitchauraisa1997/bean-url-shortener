@@ -27,9 +27,9 @@ import (
 	"backend/validations"
 
 	"github.com/getsentry/sentry-go"
-	"github.com/retail-ai-inc/bean"
-	berror "github.com/retail-ai-inc/bean/error"
-	"github.com/retail-ai-inc/bean/helpers"
+	bean "github.com/retail-ai-inc/bean/v2"
+	berror "github.com/retail-ai-inc/bean/v2/error"
+	"github.com/retail-ai-inc/bean/v2/helpers"
 	"github.com/spf13/cobra"
 )
 

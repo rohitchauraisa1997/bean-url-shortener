@@ -2,13 +2,14 @@ package repositories
 
 import (
 	"context"
-	"fmt"
+	"encoding/json"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/retail-ai-inc/bean/dbdrivers"
+	"github.com/retail-ai-inc/bean/v2/store/redis"
+	"github.com/spf13/viper"
 )
 
 type UrlRepository interface {
@@ -16,7 +17,8 @@ type UrlRepository interface {
 	CreateShortenedUrl(c context.Context, shortenedUrl string, url string, userIp string, ttlInMins time.Duration) (string, error)
 	GetUrlViaShortenedUrl(c context.Context, shortenedUrl string) (string, error)
 	IncreaseVisitCounter(c context.Context, shortenedUrl string) (uint64, error)
-	GetAllShortenedUrlKeys(c context.Context) ([]string, error)
+	GetAllShortenedUrlKeysForAllUsers(c context.Context) ([]string, error)
+	GetAllShortenedUrlKeysForUser(c context.Context, userId string) ([]string, error)
 	GetUrlForShortenedKeys(c context.Context, shortenedKeys []string) (map[string]string, error)
 	GetTtlForShortenedKeys(c context.Context, shortenedKeys []string) (map[string]uint64, error)
 	GetUrlHitsForShortenedKeys(c context.Context, shortenedKeys []string) (map[string]uint64, error)
@@ -24,18 +26,17 @@ type UrlRepository interface {
 }
 
 type urlRepository struct {
-	client *dbdrivers.RedisDBConn
+	urlRepo redis.MasterCache
 }
 
-func NewUrlRepository(client *dbdrivers.RedisDBConn) *urlRepository {
-	return &urlRepository{client}
+func NewUrlRepository(urlRepo redis.MasterCache) *urlRepository {
+	return &urlRepository{urlRepo}
 }
 
 func (r *urlRepository) GetNewShortenedUrl(c context.Context) (string, error) {
-	fmt.Println("GetNewShortenedUrl triggered!!")
 	var shortenedUrl string
 
-	allKeys, err := dbdrivers.RedisGetKeys(c, r.client, "*")
+	allKeys, err := r.urlRepo.Keys(c, "*")
 	if err != nil {
 		panic(err)
 	}
@@ -55,41 +56,31 @@ func (r *urlRepository) GetNewShortenedUrl(c context.Context) (string, error) {
 			break // Found a unique shortenedUrl, break the loop
 		}
 	}
-	// dbdrivers.RedisHSet(c, r.client, shortenedUrl)
 
 	return shortenedUrl, nil
 }
 
-func (r *urlRepository) CreateShortenedUrl(c context.Context, shortenedUrl string, urlToShorten string, userIp string, ttlInMins time.Duration) (string, error) {
-	fmt.Println("CreateShortenedUrl triggered!!")
-	err := dbdrivers.RedisHSet(c, r.client, shortenedUrl, "url", urlToShorten, 0)
-	if err != nil {
-		panic(err)
-	}
+func (r *urlRepository) CreateShortenedUrl(c context.Context, shortenedUrl string, urlToShorten string, userId string, ttlInMins time.Duration) (string, error) {
 	createdAt := time.Now().Unix()
-	// adding createdAt and toBeDeletedAt at time of creation for preventing ttl calls for each key.
 	toBeDeletedAt := time.Now().Unix() + int64((ttlInMins/time.Nanosecond/time.Minute)*60)
-	err = dbdrivers.RedisHSet(c, r.client, shortenedUrl, "createdAt", createdAt, 0)
+
+	urlMap := map[string]interface{}{
+		"url":           urlToShorten,
+		"createdAt":     createdAt,
+		"toBeDeletedAt": toBeDeletedAt,
+		"createdBy":     userId,
+		"urlHits":       0,
+	}
+	err := r.urlRepo.HSet(c, shortenedUrl, urlMap)
 	if err != nil {
 		panic(err)
 	}
-	err = dbdrivers.RedisHSet(c, r.client, shortenedUrl, "toBeDeletedAt", toBeDeletedAt, 0)
-	if err != nil {
-		panic(err)
-	}
-	err = dbdrivers.RedisHSet(c, r.client, shortenedUrl, "createdBy", userIp, 0)
-	if err != nil {
-		panic(err)
-	}
-	err = dbdrivers.RedisHSet(c, r.client, shortenedUrl, "urlHits", 0, ttlInMins)
-	if err != nil {
-		panic(err)
-	}
+
 	return shortenedUrl, nil
 }
 
 func (r *urlRepository) GetUrlViaShortenedUrl(c context.Context, shortenedUrl string) (string, error) {
-	actualUrl, err := dbdrivers.RedisHGet(c, r.client, shortenedUrl, "url")
+	actualUrl, err := r.urlRepo.HGet(c, shortenedUrl, "url")
 	if err != nil {
 		panic(err)
 	}
@@ -98,7 +89,7 @@ func (r *urlRepository) GetUrlViaShortenedUrl(c context.Context, shortenedUrl st
 }
 
 func (r *urlRepository) IncreaseVisitCounter(c context.Context, shortenedUrl string) (uint64, error) {
-	currUrlHits, err := dbdrivers.RedisHGet(c, r.client, shortenedUrl, "urlHits")
+	currUrlHits, err := r.urlRepo.HGet(c, shortenedUrl, "urlHits")
 	if err != nil {
 		panic(err)
 	}
@@ -106,25 +97,95 @@ func (r *urlRepository) IncreaseVisitCounter(c context.Context, shortenedUrl str
 	if err != nil {
 		panic(err)
 	}
-	err = dbdrivers.RedisHSet(c, r.client, shortenedUrl, "urlHits", currUrlHitsUint+1, 0)
+	err = r.urlRepo.HSet(c, shortenedUrl, "urlHits", currUrlHitsUint+1)
 	if err != nil {
 		panic(err)
 	}
 	return uint64(currUrlHitsUint) + 1, nil
 }
 
-func (r *urlRepository) GetAllShortenedUrlKeys(c context.Context) ([]string, error) {
-	allKeys, err := dbdrivers.RedisGetKeys(c, r.client, "*")
+func (r *urlRepository) GetAllShortenedUrlKeysForAllUsers(c context.Context) ([]string, error) {
+	allUserKeys, err := r.urlRepo.Keys(c, "User*")
 	if err != nil {
 		panic(err)
 	}
-	onlyShortenedUrlKeys := []string{}
-	for _, key := range allKeys {
-		if !strings.Contains(key, "User") {
-			onlyShortenedUrlKeys = append(onlyShortenedUrlKeys, key)
+	// fmt.Println("allUserKeys", allUserKeys)
+
+	var redisKeysWithField = make(map[string]string)
+	for i := 0; i < len(allUserKeys); i++ {
+		// fmt.Println("allUserKeys[i]", allUserKeys[i])
+		allUserKeys[i] = strings.TrimPrefix(allUserKeys[i], viper.GetString("database.redis.prefix")+"_")
+		redisKeysWithField[allUserKeys[i]] = "urlsList"
+	}
+	// jsonRedisKeysWithField, _ := json.MarshalIndent(redisKeysWithField, " ", " ")
+	// fmt.Println("jsonRedisKeysWithFieldjsonRedisKeysWithFieldjsonRedisKeysWithField")
+	// fmt.Println(string(jsonRedisKeysWithField))
+	// fmt.Println("jsonRedisKeysWithFieldjsonRedisKeysWithFieldjsonRedisKeysWithField")
+
+	shortenedUrlsCreatedByUser, err := r.urlRepo.HGets(c, redisKeysWithField)
+	if err != nil {
+		panic(err)
+	}
+	// fmt.Println("shortenedUrlsCreatedByUser", shortenedUrlsCreatedByUser)
+
+	var allShortenedUrls []string
+	for _, shortenedUrlsAsString := range shortenedUrlsCreatedByUser {
+		// fmt.Println("user", user)
+		// fmt.Println("shortenedUrlsAsString", shortenedUrlsAsString)
+		var shortenedUrls []string
+		json.Unmarshal([]byte(shortenedUrlsAsString), &shortenedUrls)
+		allShortenedUrls = append(allShortenedUrls, shortenedUrls...)
+	}
+	// fmt.Println("allShortenedUrls", allShortenedUrls)
+
+	return allShortenedUrls, nil
+}
+
+func findCommonElementsInSlices(slice1, slice2 []string) []string {
+	elementsMap := make(map[string]bool)
+
+	for _, elem := range slice1 {
+		elementsMap[elem] = true
+	}
+
+	var commonElements []string
+
+	for _, elem := range slice2 {
+		// If the element exists in the map, it's common
+		if elementsMap[elem] {
+			commonElements = append(commonElements, elem)
 		}
 	}
-	return onlyShortenedUrlKeys, nil
+
+	return commonElements
+}
+
+func (r *urlRepository) GetAllShortenedUrlKeysForUser(c context.Context, userId string) ([]string, error) {
+	userId = "User" + userId
+	shortenedUrlsCreatedByUser, err := r.urlRepo.HGet(c, userId, "urlsList")
+	if err != nil {
+		panic(err)
+	}
+	var shortenedUrlsList []string
+	if shortenedUrlsCreatedByUser == "" {
+		return shortenedUrlsList, nil
+	}
+	err = json.Unmarshal([]byte(shortenedUrlsCreatedByUser), &shortenedUrlsList)
+	if err != nil {
+		panic(err)
+	}
+
+	allKeys, err := r.urlRepo.Keys(c, "*")
+	if err != nil {
+		panic(err)
+	}
+	for i := 0; i < len(allKeys); i++ {
+		allKeys[i] = strings.TrimPrefix(allKeys[i], viper.GetString("database.redis.prefix")+"_")
+	}
+	// helps us get the keys that have ttl>0
+	shortenedUrlsList = findCommonElementsInSlices(shortenedUrlsList, allKeys)
+
+	return shortenedUrlsList, nil
 }
 
 func (r *urlRepository) GetUrlForShortenedKeys(c context.Context, shortenedKeys []string) (map[string]string, error) {
@@ -133,7 +194,7 @@ func (r *urlRepository) GetUrlForShortenedKeys(c context.Context, shortenedKeys 
 		redisKeysWithField[shortenedKeys[i]] = "url"
 	}
 
-	return dbdrivers.RedisHgets(c, r.client, redisKeysWithField)
+	return r.urlRepo.HGets(c, redisKeysWithField)
 }
 
 func (r *urlRepository) GetTtlForShortenedKeys(c context.Context, shortenedKeys []string) (map[string]uint64, error) {
@@ -142,7 +203,7 @@ func (r *urlRepository) GetTtlForShortenedKeys(c context.Context, shortenedKeys 
 		redisKeysWithField[shortenedKeys[i]] = "toBeDeletedAt"
 	}
 
-	shoretenedKeyWithDeletedAt, err := dbdrivers.RedisHgets(c, r.client, redisKeysWithField)
+	shoretenedKeyWithDeletedAt, err := r.urlRepo.HGets(c, redisKeysWithField)
 	if err != nil {
 		panic(err)
 	}
@@ -165,7 +226,7 @@ func (r *urlRepository) GetUrlHitsForShortenedKeys(c context.Context, shortenedK
 		redisKeysWithField[shortenedKeys[i]] = "urlHits"
 	}
 
-	shoretenedKeyWithUrlHits, err := dbdrivers.RedisHgets(c, r.client, redisKeysWithField)
+	shoretenedKeyWithUrlHits, err := r.urlRepo.HGets(c, redisKeysWithField)
 	if err != nil {
 		panic(err)
 	}
@@ -188,5 +249,5 @@ func (r *urlRepository) GetCreatedByForShortenedKeys(c context.Context, shortene
 		redisKeysWithField[shortenedKeys[i]] = "createdBy"
 	}
 
-	return dbdrivers.RedisHgets(c, r.client, redisKeysWithField)
+	return r.urlRepo.HGets(c, redisKeysWithField)
 }

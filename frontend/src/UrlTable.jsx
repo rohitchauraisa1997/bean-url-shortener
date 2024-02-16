@@ -10,12 +10,20 @@ function UrlTable(props){
     const urlDetailRows = props.urlDetailRows
     const setUrlDetailRows = props.setUrlDetailRows
 
+
     const handleLinkClick = (index) => {
         console.log("handleLinkClick triggered!!!");
         const updatedRows = [...urlDetailRows];
         updatedRows[index].urlsAnalytics.urlHits += 1;
         setUrlDetailRows(updatedRows);
     };
+
+    console.log("urlDetailRows");
+    if (urlDetailRows.length>0){ 
+        console.log("urlDetailRows");
+        console.log(urlDetailRows);
+        console.log("urlDetailRows");
+    }
 
     if (urlDetailRows.length>0){ 
         return (

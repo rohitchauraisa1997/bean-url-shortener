@@ -27,8 +27,8 @@ import (
 
 	"backend/commands/gopher"
 
-	"github.com/retail-ai-inc/bean"
-	"github.com/retail-ai-inc/bean/helpers"
+	bean "github.com/retail-ai-inc/bean/v2"
+	"github.com/retail-ai-inc/bean/v2/helpers"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -43,10 +43,10 @@ var rootCmd = &cobra.Command{
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
-	
+
 	// Clean up bean resources before exiting.
 	defer bean.Cleanup()
-	
+
 	err := rootCmd.Execute()
 	if err != nil {
 		os.Exit(1)
