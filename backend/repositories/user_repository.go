@@ -52,6 +52,10 @@ func (r *userRepository) GetUserQuota(c context.Context, userId string) (uint64,
 		if err != nil {
 			panic(err)
 		}
+		err = r.userRepo.Expire(c, userKeyToSearchFor, time.Hour*24)
+		if err != nil {
+			panic(err)
+		}
 		return API_QUOTA, nil
 	}
 

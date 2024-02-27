@@ -91,6 +91,7 @@ func (h *userauthHandler) UserSignIn(c echo.Context) error {
 		UserId:    uint64(user.ID),
 		UserEmail: user.Email,
 		UserName:  user.Username,
+		UserRole:  user.Role,
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: time.Now().Add(viper.GetDuration("jwt.expiration")).Unix(),
 		},
@@ -105,12 +106,14 @@ func (h *userauthHandler) UserSignIn(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]interface{}{
 		"data": map[string]interface{}{
 			"accessToken": tokenString,
+			"userRole":    user.Role,
 		},
 	})
 }
 
 func (h *userauthHandler) GetCurrentUserViaJWT(c echo.Context) error {
 	tokenString := helpers.ExtractJWTFromHeader(c)
+	fmt.Println("tokenString", tokenString)
 	if tokenString == "" {
 		return c.JSON(http.StatusUnauthorized, map[string]interface{}{
 			"data": "invalid jwt provided",

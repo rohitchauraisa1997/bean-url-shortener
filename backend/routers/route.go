@@ -36,20 +36,23 @@ import (
 )
 
 type Repositories struct {
-	userauthRepo repositories.UserauthRepository // added by bean
-	urlRepo      repositories.UrlRepository      // added by bean
-	userRepo     repositories.UserRepository
+	userAuthRepo  repositories.UserauthRepository // added by bean
+	urlRepo       repositories.UrlRepository      // added by bean
+	userRepo      repositories.UserRepository
+	adminAuthRepo repositories.AdminAuthRepository
 }
 
 type Services struct {
-	userauthSvc services.UserauthService // added by bean
-	urlSvc      services.UrlService      // added by bean
-	userSvc     services.UserService
+	userauthSvc  services.UserauthService // added by bean
+	urlSvc       services.UrlService      // added by bean
+	userSvc      services.UserService
+	adminAuthSvc services.AdminAuthService
 }
 
 type Handlers struct {
-	userauthHdlr handlers.UserauthHandler // added by bean
-	urlHdlr      handlers.UrlHandler      // added by bean
+	userauthHdlr  handlers.UserauthHandler // added by bean
+	urlHdlr       handlers.UrlHandler      // added by bean
+	adminAuthHdlr handlers.AdminauthHandler
 }
 
 func Init(b *bean.Bean) {
@@ -57,20 +60,23 @@ func Init(b *bean.Bean) {
 	e := b.Echo
 
 	repos := &Repositories{
-		userauthRepo: repositories.NewUserauthRepository(b.DBConn.MasterMySQLDB), // added by bean
-		urlRepo:      repositories.NewUrlRepository(redis.NewMasterCache(b.DBConn.MasterRedisDB, viper.GetString("database.redis.prefix"))),
-		userRepo:     repositories.NewUserRepository(redis.NewMasterCache(b.DBConn.MasterRedisDB, viper.GetString("database.redis.prefix"))),
+		userAuthRepo:  repositories.NewUserauthRepository(b.DBConn.MasterMySQLDB), // added by bean
+		urlRepo:       repositories.NewUrlRepository(redis.NewMasterCache(b.DBConn.MasterRedisDB, viper.GetString("database.redis.prefix"))),
+		userRepo:      repositories.NewUserRepository(redis.NewMasterCache(b.DBConn.MasterRedisDB, viper.GetString("database.redis.prefix"))),
+		adminAuthRepo: repositories.NewAdminAuthRepository(b.DBConn.MasterMySQLDB),
 	}
 
 	svcs := &Services{
-		userauthSvc: services.NewUserauthService(repos.userauthRepo), // added by bean
-		urlSvc:      services.NewUrlService(repos.urlRepo),           // added by bean
-		userSvc:     services.NewUserService(repos.userRepo),
+		userauthSvc:  services.NewUserauthService(repos.userAuthRepo), // added by bean
+		urlSvc:       services.NewUrlService(repos.urlRepo),           // added by bean
+		userSvc:      services.NewUserService(repos.userRepo),
+		adminAuthSvc: services.NewAdminAuthService(repos.adminAuthRepo),
 	}
 
 	hdlrs := &Handlers{
-		userauthHdlr: handlers.NewUserauthHandler(svcs.userauthSvc),     // added by bean
-		urlHdlr:      handlers.NewUrlHandler(svcs.urlSvc, svcs.userSvc), // added by bean
+		userauthHdlr:  handlers.NewUserauthHandler(svcs.userauthSvc),                       // added by bean
+		urlHdlr:       handlers.NewUrlHandler(svcs.urlSvc, svcs.userSvc, svcs.userauthSvc), // added by bean
+		adminAuthHdlr: handlers.NewAdminAuthHandler(svcs.adminAuthSvc),
 	}
 
 	// Default index page goes to above JSON (/json) index page.
@@ -80,20 +86,25 @@ func Init(b *bean.Bean) {
 		})
 	})
 
+	// accessible to everyone
+	e.GET("/:url", hdlrs.urlHdlr.ResolveUrl)
+
+	// provisioning apis for users
 	user := e.Group("/user")
 	user.POST("/signup", hdlrs.userauthHdlr.UserSignUp)
 	user.POST("/signin", hdlrs.userauthHdlr.UserSignIn)
 	user.GET("/me", hdlrs.userauthHdlr.GetCurrentUserViaJWT)
 
+	// accessible to users
 	urlShortener := e.Group("/url-shortener")
 	urlShortener.Use(middlewares.JWTMiddleware())
 	urlShortener.GET("/resolutions/analytics", hdlrs.urlHdlr.GetUrlResolutionAnalyticsForUser)
-	urlShortener.GET("/client-ip", func(c echo.Context) error {
-		return c.JSON(http.StatusOK, map[string]string{
-			"clientIp": c.RealIP(),
-		})
-	})
-	urlShortener.POST("/api/shorten", hdlrs.urlHdlr.ShortenUrl)
-	e.GET("/:url", hdlrs.urlHdlr.ResolveUrl)
-	urlShortener.GET("/admin/resolutions/analytics", hdlrs.urlHdlr.GetUrlResolutionAnalyticsForAllUsers)
+	urlShortener.POST("/api/shorten", hdlrs.urlHdlr.ShortenUrl, middlewares.UserOnlyMiddleware)
+
+	// accessible only to admin
+	// admin can only go through the analytics but cant use the application to create urls
+	// admin := e.Group("/admin")
+	// admin.POST("/signin", hdlrs.adminAuthHdlr.AdminSignIn)
+	// admin.Use(middlewares.JWTMiddleware())
+	urlShortener.GET("/resolutions/analytics/all", hdlrs.urlHdlr.GetUrlResolutionAnalyticsForAllUsers, middlewares.AdminOnlyMiddleware)
 }

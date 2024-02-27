@@ -36,7 +36,32 @@ func JWTMiddleware() echo.MiddlewareFunc {
 			}
 
 			c.Set("userId", userClaims.UserId)
+			c.Set("user", userClaims)
 			return next(c)
 		}
+	}
+}
+
+func AdminOnlyMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		user := c.Get("user").(jwtdata.UserJWTTokenData)
+		if user.UserRole != "admin" {
+			return c.JSON(http.StatusForbidden, map[string]interface{}{
+				"error": "Access forbidden",
+			})
+		}
+		return next(c)
+	}
+}
+
+func UserOnlyMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		user := c.Get("user").(jwtdata.UserJWTTokenData)
+		if user.UserRole != "user" {
+			return c.JSON(http.StatusForbidden, map[string]interface{}{
+				"error": "Access forbidden",
+			})
+		}
+		return next(c)
 	}
 }

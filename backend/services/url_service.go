@@ -2,8 +2,6 @@ package services
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"strings"
 	"time"
 
@@ -18,7 +16,8 @@ import (
 type UrlService interface {
 	ShortenUrl(ctx context.Context, urlToShorten string, userIp string, expiryDuration time.Duration) (string, error)
 	ResolveUrl(ctx context.Context, shortenedUrl string) (string, error)
-	GetAnalytics(ctx context.Context) (models.ShortenedUrlAndDetailsSlice, error)
+	// GetAnalyticsForAllUsers(ctx context.Context) (models.ShortenedUrlAndDetailsSlice, error)
+	GetAnalyticsForAllUsers(ctx context.Context) (map[string]models.ShortenedUrlAndDetailsSlice, error)
 	GetAnalyticsForUser(ctx context.Context, userId string) (models.ShortenedUrlAndDetailsSlice, error)
 }
 
@@ -50,43 +49,55 @@ func (service *urlService) ResolveUrl(ctx context.Context, shortenedUrl string) 
 	return url, nil
 }
 
-func (service *urlService) GetAnalytics(ctx context.Context) (models.ShortenedUrlAndDetailsSlice, error) {
+func (service *urlService) GetAnalyticsForAllUsers(ctx context.Context) (map[string]models.ShortenedUrlAndDetailsSlice, error) {
 	shortenedKeys, _ := service.urlRepository.GetAllShortenedUrlKeysForAllUsers(ctx)
-	jsonshortenedKeys, _ := json.MarshalIndent(shortenedKeys, " ", " ")
-	fmt.Println("*************")
-	fmt.Println(string(jsonshortenedKeys))
-	fmt.Println("*************")
 	shortenedKeysWithUrls, _ := service.urlRepository.GetUrlForShortenedKeys(ctx, shortenedKeys)
 	shortenedKeysWithTtls, _ := service.urlRepository.GetTtlForShortenedKeys(ctx, shortenedKeys)
 	shortenedKeysWithUrlHits, _ := service.urlRepository.GetUrlHitsForShortenedKeys(ctx, shortenedKeys)
 	shortenedKeysWithCreatedBy, _ := service.urlRepository.GetCreatedByForShortenedKeys(ctx, shortenedKeys)
 
-	var fulResponse = make(map[string]models.UrlAnalyticDetails)
 	domainName := viper.GetString("backend.domain")
+	keyPrefix := viper.GetString("database.redis.prefix")
 
-	for _, skey := range shortenedKeys {
-		prefixedSkey := viper.GetString("database.redis.prefix") + "_" + skey
-		var routeResolutionDetails models.UrlAnalyticDetails
-		if val, ok := shortenedKeysWithUrls[prefixedSkey]; ok {
+	var adminResponse = make(map[string]models.ShortenedUrlAndDetailsSlice)
+	for shortenedKey, createdByUser := range shortenedKeysWithCreatedBy {
+		var shortenedUrlAnalytics models.UrlAnalyticDetails
+		if val, ok := shortenedKeysWithUrls[shortenedKey]; ok {
 			val = strings.Trim(val, "\"")
-			routeResolutionDetails.URL = val
+			shortenedUrlAnalytics.URL = val
 		}
-		if val, ok := shortenedKeysWithTtls[prefixedSkey]; ok {
+		if val, ok := shortenedKeysWithTtls[shortenedKey]; ok {
 			ttl := uint64(int64(val) - time.Now().Unix())
-			routeResolutionDetails.TTL = ttl
+			shortenedUrlAnalytics.TTL = ttl
 		}
-		if val, ok := shortenedKeysWithUrlHits[prefixedSkey]; ok {
-			routeResolutionDetails.Hits = val
+		if val, ok := shortenedKeysWithUrlHits[shortenedKey]; ok {
+			shortenedUrlAnalytics.Hits = val
 		}
-		if val, ok := shortenedKeysWithCreatedBy[prefixedSkey]; ok {
+		if val, ok := shortenedKeysWithCreatedBy[shortenedKey]; ok {
 			val = strings.Trim(val, "\"")
-			routeResolutionDetails.CreatedBy = val
+			shortenedUrlAnalytics.CreatedBy = val
 		}
-		skey = domainName + "/" + skey
-		fulResponse[skey] = routeResolutionDetails
+
+		// if createdByUser already in adminResponse add the shortenedUrl to the previously added slice
+		if _, ok := adminResponse[createdByUser]; ok {
+			shortenedKey = strings.TrimPrefix(shortenedKey, keyPrefix+"_")
+			shortenedKey = domainName + "/" + shortenedKey
+			adminResponse[createdByUser] = append(adminResponse[createdByUser], models.ShortenedUrlAndDetail{
+				ShortenedUrl:  shortenedKey,
+				UrlsAnalytics: shortenedUrlAnalytics,
+			})
+		} else {
+			// initiate the slice
+			shortenedKey = strings.TrimPrefix(shortenedKey, keyPrefix+"_")
+			shortenedKey = domainName + "/" + shortenedKey
+			adminResponse[createdByUser] = models.ShortenedUrlAndDetailsSlice{models.ShortenedUrlAndDetail{
+				ShortenedUrl:  shortenedKey,
+				UrlsAnalytics: shortenedUrlAnalytics,
+			}}
+		}
 	}
-	sortedResponse := helpers.SortResponse(fulResponse)
-	return sortedResponse, nil
+
+	return adminResponse, nil
 }
 
 func (service *urlService) GetAnalyticsForUser(ctx context.Context, userId string) (models.ShortenedUrlAndDetailsSlice, error) {
@@ -99,28 +110,28 @@ func (service *urlService) GetAnalyticsForUser(ctx context.Context, userId strin
 
 	var fulResponse = make(map[string]models.UrlAnalyticDetails)
 	domainName := viper.GetString("backend.domain")
+	keyPrefix := viper.GetString("database.redis.prefix") + "_"
 
 	for _, skey := range shortenedKeys {
-		prefixedSkey := viper.GetString("database.redis.prefix") + "_" + skey
-		var routeResolutionDetails models.UrlAnalyticDetails
+		prefixedSkey := keyPrefix + skey
+		var shortenedUrlAnalytics models.UrlAnalyticDetails
 		if val, ok := shortenedKeysWithUrls[prefixedSkey]; ok {
 			val = strings.Trim(val, "\"")
-			// val = strings.TrimPrefix(val, viper.GetString("database.redis.prefix")+"_")
-			routeResolutionDetails.URL = val
+			shortenedUrlAnalytics.URL = val
 		}
 		if val, ok := shortenedKeysWithTtls[prefixedSkey]; ok {
 			ttl := uint64(int64(val) - time.Now().Unix())
-			routeResolutionDetails.TTL = ttl
+			shortenedUrlAnalytics.TTL = ttl
 		}
 		if val, ok := shortenedKeysWithUrlHits[prefixedSkey]; ok {
-			routeResolutionDetails.Hits = val
+			shortenedUrlAnalytics.Hits = val
 		}
 		if val, ok := shortenedKeysWithCreatedBy[prefixedSkey]; ok {
 			val = strings.Trim(val, "\"")
-			routeResolutionDetails.CreatedBy = val
+			shortenedUrlAnalytics.CreatedBy = val
 		}
 		skey = domainName + "/" + skey
-		fulResponse[skey] = routeResolutionDetails
+		fulResponse[skey] = shortenedUrlAnalytics
 	}
 	sortedResponse := helpers.SortResponse(fulResponse)
 	return sortedResponse, nil

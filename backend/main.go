@@ -26,23 +26,3 @@ import "backend/commands"
 func main() {
 	commands.Execute()
 }
-
-// package main
-
-// import (
-// 	"github.com/gofiber/fiber/v2"
-// )
-
-// func main() {
-// 	app := fiber.New()
-
-// 	app.Get("/", func(c *fiber.Ctx) error {
-// 		ip := c.IP()
-// 		return c.SendString("Client IP: " + ip)
-// 	})
-
-// 	err := app.Listen(":3002")
-// 	if err != nil {
-// 		panic(err)
-// 	}
-// }

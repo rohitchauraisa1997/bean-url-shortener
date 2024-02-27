@@ -17,6 +17,7 @@ type userAuthRepo struct {
 }
 
 type UserauthRepository interface {
+	GetAllUsers(ctx context.Context) ([]models.User, error)
 	UserSignUp(ctx context.Context, userToAdd models.User) error
 	AuthenticateUser(ctx context.Context, userEmailId string, userPassword string) (*models.User, error)
 }
@@ -30,12 +31,26 @@ func getHashedPassword(password string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	fmt.Println("password", password)
+	fmt.Println("hashedPassword", string(hashedPassword))
 	return string(hashedPassword), nil
 }
 
 func checkPasswordHash(password, hash string) bool {
+	fmt.Println("password", password)
+	fmt.Println("hash", hash)
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+	fmt.Println("err", err)
 	return err == nil
+}
+
+func (r *userAuthRepo) GetAllUsers(ctx context.Context) ([]models.User, error) {
+	var allUsers []models.User
+
+	if err := r.MasterMySqlDB.Select("id,username,email").Find(&allUsers).Error; err != nil {
+		return nil, errors.WithStack(err)
+	}
+	return allUsers, nil
 }
 
 func (r *userAuthRepo) UserSignUp(ctx context.Context, userToAdd models.User) error {
@@ -50,6 +65,7 @@ func (r *userAuthRepo) UserSignUp(ctx context.Context, userToAdd models.User) er
 		return errors.WithStack(err)
 	}
 	userToAdd.Password = string(hashedPassword)
+	userToAdd.Role = "user"
 
 	// Create a new user
 	// Insert the user into the database

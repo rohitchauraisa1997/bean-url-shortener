@@ -76,6 +76,11 @@ func (r *urlRepository) CreateShortenedUrl(c context.Context, shortenedUrl strin
 		panic(err)
 	}
 
+	err = r.urlRepo.Expire(c, shortenedUrl, ttlInMins)
+	if err != nil {
+		panic(err)
+	}
+
 	return shortenedUrl, nil
 }
 
@@ -109,34 +114,34 @@ func (r *urlRepository) GetAllShortenedUrlKeysForAllUsers(c context.Context) ([]
 	if err != nil {
 		panic(err)
 	}
-	// fmt.Println("allUserKeys", allUserKeys)
 
 	var redisKeysWithField = make(map[string]string)
 	for i := 0; i < len(allUserKeys); i++ {
-		// fmt.Println("allUserKeys[i]", allUserKeys[i])
 		allUserKeys[i] = strings.TrimPrefix(allUserKeys[i], viper.GetString("database.redis.prefix")+"_")
 		redisKeysWithField[allUserKeys[i]] = "urlsList"
 	}
-	// jsonRedisKeysWithField, _ := json.MarshalIndent(redisKeysWithField, " ", " ")
-	// fmt.Println("jsonRedisKeysWithFieldjsonRedisKeysWithFieldjsonRedisKeysWithField")
-	// fmt.Println(string(jsonRedisKeysWithField))
-	// fmt.Println("jsonRedisKeysWithFieldjsonRedisKeysWithFieldjsonRedisKeysWithField")
 
-	shortenedUrlsCreatedByUser, err := r.urlRepo.HGets(c, redisKeysWithField)
+	shortenedUrlsCreatedByUsers, err := r.urlRepo.HGets(c, redisKeysWithField)
 	if err != nil {
 		panic(err)
 	}
-	// fmt.Println("shortenedUrlsCreatedByUser", shortenedUrlsCreatedByUser)
 
 	var allShortenedUrls []string
-	for _, shortenedUrlsAsString := range shortenedUrlsCreatedByUser {
-		// fmt.Println("user", user)
-		// fmt.Println("shortenedUrlsAsString", shortenedUrlsAsString)
+	for _, shortenedUrlsAsString := range shortenedUrlsCreatedByUsers {
 		var shortenedUrls []string
 		json.Unmarshal([]byte(shortenedUrlsAsString), &shortenedUrls)
 		allShortenedUrls = append(allShortenedUrls, shortenedUrls...)
 	}
-	// fmt.Println("allShortenedUrls", allShortenedUrls)
+
+	allKeys, err := r.urlRepo.Keys(c, "*")
+	if err != nil {
+		panic(err)
+	}
+	for i := 0; i < len(allKeys); i++ {
+		allKeys[i] = strings.TrimPrefix(allKeys[i], viper.GetString("database.redis.prefix")+"_")
+	}
+	// helps us get the keys that have ttl>0
+	allShortenedUrls = findCommonElementsInSlices(allShortenedUrls, allKeys)
 
 	return allShortenedUrls, nil
 }

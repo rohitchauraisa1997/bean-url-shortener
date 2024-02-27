@@ -1,6 +1,8 @@
 package models
 
-import "time"
+import (
+	"time"
+)
 
 type Response struct {
 	URL         string        `json:"url"`
@@ -40,4 +42,9 @@ func (s ShortenedUrlAndDetailsSlice) Swap(i, j int) {
 type UrlHitsAndCreatedAtInfo struct {
 	CreatedAt time.Time `json:"createdAt"`
 	Urlhits   uint64    `json:"urlhits"`
+}
+
+type UserWiseDetails struct {
+	ShortenedUrlAndDetailsSlice []ShortenedUrlAndDetail `json:"shortenedUrlAndDetailsSlice"`
+	User                        User                    `json:"userDetails"`
 }

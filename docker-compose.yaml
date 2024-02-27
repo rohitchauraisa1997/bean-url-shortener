@@ -48,5 +48,6 @@ services:
       MYSQL_PASSWORD: root
       MYSQL_TCP_PORT: 65333
     volumes:
-      - ./db/mysql:/docker-entrypoint-initdb.d
+      - ./db/mysql/user-init.sql:/docker-entrypoint-initdb.d/user-init.sql
+      - ./db/mysql/admin-init.sql:/docker-entrypoint-initdb.d/admin-init.sql
       - ./db/mysql/data:/var/lib/mysql:delegated

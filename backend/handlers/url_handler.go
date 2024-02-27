@@ -22,26 +22,47 @@ type UrlHandler interface {
 }
 
 type urlHandler struct {
-	urlService  services.UrlService
-	userService services.UserService
+	urlService      services.UrlService
+	userService     services.UserService
+	userauthService services.UserauthService
 }
 
-func NewUrlHandler(urlSvc services.UrlService, userSvc services.UserService) *urlHandler {
+func NewUrlHandler(urlSvc services.UrlService, userSvc services.UserService, userAuthSvc services.UserauthService) *urlHandler {
 	return &urlHandler{
-		urlService:  urlSvc,
-		userService: userSvc,
+		urlService:      urlSvc,
+		userService:     userSvc,
+		userauthService: userAuthSvc,
 	}
 }
 
 func (handler *urlHandler) GetUrlResolutionAnalyticsForAllUsers(c echo.Context) error {
 	tctx := c.Request().Context()
 
-	resp, err := handler.urlService.GetAnalytics(tctx)
+	resp, err := handler.urlService.GetAnalyticsForAllUsers(tctx)
 	if err != nil {
 		panic(err)
 	}
 
-	return c.JSON(http.StatusOK, resp)
+	if len(resp) == 0 {
+		return c.JSON(http.StatusOK, []models.ShortenedUrlAndDetailsSlice{})
+	}
+
+	allUsers, err := handler.userauthService.GetAllUsers(tctx)
+	if err != nil {
+		panic(err)
+	}
+
+	var updatedResponse = make(map[string]interface{})
+	for userId, userDetails := range resp {
+		var userResponse = make(map[string]interface{})
+		if val, ok := allUsers[userId]; ok {
+			userResponse["user"] = val
+		}
+		userResponse["allShortenedUrlDetails"] = userDetails
+		updatedResponse[userId] = userResponse
+	}
+
+	return c.JSON(http.StatusOK, updatedResponse)
 }
 
 func (handler *urlHandler) GetUrlResolutionAnalyticsForUser(c echo.Context) error {
@@ -53,6 +74,9 @@ func (handler *urlHandler) GetUrlResolutionAnalyticsForUser(c echo.Context) erro
 		panic(err)
 	}
 
+	if len(resp) == 0 {
+		return c.JSON(http.StatusOK, []models.ShortenedUrlAndDetailsSlice{})
+	}
 	return c.JSON(http.StatusOK, resp)
 }
 

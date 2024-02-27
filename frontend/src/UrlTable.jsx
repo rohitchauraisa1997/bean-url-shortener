@@ -31,7 +31,7 @@ function UrlTable(props){
             <Table sx={{ minWidth: 650 }} aria-label="simple table">
             <TableHead>
                 <TableRow>
-                <TableCell >User</TableCell>
+                {/* <TableCell >User</TableCell> */}
                 <TableCell>Url</TableCell>
                 <TableCell >Custom Shortened URL</TableCell>
                 <TableCell >TTL &nbsp;(sec)</TableCell>
@@ -44,7 +44,7 @@ function UrlTable(props){
                     key={row.shortenedUrl}
                     sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
                 >   
-                    <TableCell component="th" scope="row">{row.urlsAnalytics.createdBy}</TableCell>
+                    {/* <TableCell component="th" scope="row">{row.urlsAnalytics.createdBy}</TableCell> */}
                     <TableCell component="th" scope="row">{row.urlsAnalytics.url}</TableCell>
                     <TableCell>
                     <a href={row.shortenedUrl} target="_blank" rel="noopener noreferrer"  onClick={() => handleLinkClick(index)}>

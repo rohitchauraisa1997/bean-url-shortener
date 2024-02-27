@@ -9,6 +9,7 @@ import { Link, Typography } from '@mui/material';
 import CircularProgress from '@mui/material/CircularProgress';
 import { ThemeProvider } from '@mui/system'; // Import from @mui/system
 import { createTheme } from '@mui/material/styles';
+import AvatarWithLogoutOptions from './AvatarOp';
 
 const darkTheme = createTheme({
     palette: {
@@ -21,22 +22,31 @@ const darkTheme = createTheme({
 
 
 function BeanUrlAppBar (){
-    const [userName, setUserEmail] = useState(null);
+    const [userName, setUserName] = useState(null);
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate()
 
     useEffect(()=>{
         axios.get("http://localhost:3002/user/me",{
             headers:{
-                Authorization: "Bearer " + localStorage.getItem("token")
+                Authorization: "Bearer " + localStorage.getItem("userToken")
             }
         })
         .then(response => {
+            console.log("response.data");
+            console.log(response.data);
+            console.log("response.data");
             // setLoading(false);
-            return response.data.username;
+            // console.log("response", response);
+            // console.log("response.data", response.data);
+            return response.data.data
         })
         .then(data=>{
-            setUserEmail(data)
+            console.log("data", data);
+            console.log("datauser", data.user);
+            console.log("datauser", data.user.userName);
+            // setUserName(data)
+            setUserName(data.user.userName)
             setLoading(false); 
         })
         .catch(error=>{
@@ -68,8 +78,9 @@ function BeanUrlAppBar (){
             </div>
         );
     } else if (userName ===null){
+        console.log("userName",userName);
         return (
-        <ThemeProvider theme={darkTheme}> 
+        // <ThemeProvider theme={darkTheme}> 
             <AppBar position="static">
                 <Toolbar>
                     <Typography sx={{ flexGrow: 1 }} variant='h5' fontWeight="bold">   
@@ -80,19 +91,21 @@ function BeanUrlAppBar (){
                     <Button color="inherit" onClick={handleUserSignUpClick}>SignUp</Button>
                 </Toolbar>
             </AppBar>
-        </ThemeProvider>
+        // </ThemeProvider>
         )
     }else{
         return (
-        <ThemeProvider theme={darkTheme}> 
+        // <ThemeProvider theme={darkTheme}> 
             <AppBar position="static">
                 <Toolbar>
                     <Typography sx={{ flexGrow: 1 }} variant='h5' fontWeight="bold">   
-                        <Link color="textPrimary" underline='none' href="/bucket/all"> Time Capsule Investor</Link> 
+                        <Link color="textPrimary" underline='none' href="/user"> Bean Url Shortener</Link> 
                     </Typography>
+                    <AvatarWithLogoutOptions userName={userName}>
+                    </AvatarWithLogoutOptions>
                 </Toolbar>
             </AppBar>
-        </ThemeProvider>
+        // </ThemeProvider>
         )
     }
 }

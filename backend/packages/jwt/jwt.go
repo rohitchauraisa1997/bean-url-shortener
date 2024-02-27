@@ -30,6 +30,7 @@ type UserJWTTokenData struct {
 	UserId    uint64 `json:"userId"`
 	UserEmail string `json:"userEmail"`
 	UserName  string `json:"userName"`
+	UserRole  string `json:"userRole"`
 	/* Add your own data here */
 	jwt.StandardClaims
 }

@@ -28,8 +28,13 @@ function Signin() {
         })
         .then((data) => {
             const accessToken = data["data"]["accessToken"];
-            localStorage.setItem("token", accessToken);
-            window.location = "/work";
+            const userRole = data["data"]["userRole"];
+            localStorage.setItem("userToken", accessToken);
+            if (userRole=="admin"){
+                window.location = "/admin";
+            }else{
+                window.location = "/user";
+            }
         })
         .catch((error) => {
             if (error.response && error.response.status === 401) {
@@ -96,6 +101,9 @@ return (
             >
                 Signin
             </Button>
+            <br />
+            <br />
+
             </Card>
         </div>
         </div>
