@@ -100,7 +100,7 @@ export default function CollapsibleTable() {
   const [rows, setRows] = useState([]);
 
   useEffect(() => {
-    axios.get("http://localhost:3002/url-shortener/resolutions/analytics/all", {
+    axios.get("http://localhost:3000/url-shortener/resolutions/analytics/all", {
         headers: {
             Authorization: "Bearer " + localStorage.getItem("userToken")
         }

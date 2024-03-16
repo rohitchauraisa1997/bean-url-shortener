@@ -11,7 +11,7 @@ function InputBar(props){
     const handleRegisterUrl = () =>{
         {   
             console.log("here1",props);
-            fetch("http://localhost:3002/url-shortener/api/shorten",
+            fetch("http://localhost:3000/url-shortener/api/shorten",
                 {
                     method:"POST",
                     body: JSON.stringify({

@@ -23,7 +23,7 @@ function Signup() {
             return; // Stop signup process
         }
 
-        axios.post("http://localhost:3002/user/signup", {
+        axios.post("http://localhost:3000/user/signup", {
             email: email,
             username: username,
             password: password

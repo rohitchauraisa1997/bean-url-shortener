@@ -1,25 +1,17 @@
 FROM golang:1.21-alpine3.19 as builder
 
-RUN mkdir /build
+# The latest alpine images don't have some tools like (`git` and `bash`).
+# Adding git, bash and openssh to the image
+RUN apk update && apk upgrade && apk add --no-cache bash git openssh make autoconf gcc libc-dev sudo procps curl
 
-ADD . /build
+# Set the Current Working Directory inside the container
+WORKDIR /var/www/backend
 
-WORKDIR /build
+COPY . .
 
-RUN go build -v -o main .
+RUN go build -v
 
-FROM alpine:3.19.0
-
-RUN adduser -S -D -H -h /app appuser
-
-USER appuser
-
-COPY . /app
-
-COPY --from=builder /build/main /app/ 
-
-WORKDIR /app
-
+# Expose port 3000 to the outside world
 EXPOSE 3000
 
-CMD ["./main"]
+CMD ["./backend","start"]

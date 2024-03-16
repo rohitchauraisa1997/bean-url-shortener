@@ -5,41 +5,39 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: url-shortener-frontend
+    container_name: frontend
     ports:
       - "5000:5000"
     volumes:
     # to make changes dynamically without reloading docker compose
       - ./frontend/src:/app/src
       - ./frontend/index.html:/app/index.html
-  #   depends_on:
-  #     - backend
+    depends_on:
+      - backend
 
-  # backend: 
-  #   build: 
-  #     context: ./backend
-  #     dockerfile: Dockerfile
-  #   container_name: url-shortener-backend
-  #   ports: 
-  #     - "3000:3000"
-  #   depends_on:
-  #     - database
-
-  database-redis:
+  backend: 
     build: 
-      context: ./db/redis
+      context: ./backend 
       dockerfile: Dockerfile
-    container_name: url-shortener-redis-db
+    container_name: backend
     ports: 
-      - "6384:6379"
+      - "3000:3000"
+    depends_on:
+      database-mysql:
+        condition: service_healthy
+    # restart: always
+    
+  database-redis:
+    image: redis:7.2.3-alpine3.19
+    container_name: database-redis
+    ports: 
+      - "6379:6379"
     volumes:
       - ./db/redis/data:/data
 
   database-mysql:
-    build: 
-      context: ./db/mysql
-      dockerfile: Dockerfile
-    container_name: url-shortener-mysql-db
+    image: mysql:8.0
+    container_name: database-mysql
     ports:
       - "65333:65333"
     environment:
@@ -49,5 +47,13 @@ services:
       MYSQL_TCP_PORT: 65333
     volumes:
       - ./db/mysql/user-init.sql:/docker-entrypoint-initdb.d/user-init.sql
-      - ./db/mysql/admin-init.sql:/docker-entrypoint-initdb.d/admin-init.sql
+      # - ./db/mysql/admin-init.sql:/docker-entrypoint-initdb.d/admin-init.sql
       - ./db/mysql/data:/var/lib/mysql:delegated
+    # u can tweak the healthcheck parameters for faster loading of mysql and hence the app.
+    # https://docs.docker.com/engine/reference/builder/#healthcheck
+    healthcheck:
+      test: mysqladmin ping -h 127.0.0.1 -u root --password=root
+      interval: 10s
+      timeout: 10s
+      retries: 20
+      start_period: 20s

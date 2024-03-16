@@ -16,7 +16,7 @@ function App() {
 
     useEffect(() => {
         // Use your authentication logic here
-        axios.get("http://localhost:3002/user/me", {
+        axios.get("http://localhost:3000/user/me", {
             headers: {
                 Authorization: "Bearer " + localStorage.getItem("userToken")
             }
@@ -42,7 +42,7 @@ function App() {
     console.log("authenticatedAdmin",authenticatedAdmin);
 
     useEffect(()=>{
-      fetch("http://localhost:3002/url-shortener/resolutions/analytics", { 
+      fetch("http://localhost:3000/url-shortener/resolutions/analytics", { 
         method: "GET",
         headers:{
             "Content-Type":"application/json",

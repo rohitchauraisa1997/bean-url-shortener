@@ -27,7 +27,7 @@ function BeanUrlAppBar (){
     const navigate = useNavigate()
 
     useEffect(()=>{
-        axios.get("http://localhost:3002/user/me",{
+        axios.get("http://localhost:3000/user/me",{
             headers:{
                 Authorization: "Bearer " + localStorage.getItem("userToken")
             }

@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 function App() {
   const [urlDetailRows, setUrlDetailRows] = useState([]);
   // useEffect(()=>{
-  //     fetch("http://localhost:3002/admin/route/resolutions/analytics",
+  //     fetch("http://localhost:3000/admin/route/resolutions/analytics",
   //     {method:"GET"}).then(
   //         response=> response.json()).then(
   //         data=>{
@@ -17,7 +17,7 @@ function App() {
   // },[])
 
   useEffect(()=>{
-    fetch("http://localhost:3002/url-shortener/admin/resolutions/analytics", { method: "GET" })
+    fetch("http://localhost:3000/url-shortener/admin/resolutions/analytics", { method: "GET" })
     .then(response => response.json())
     .then(data => {
       // Log the response
