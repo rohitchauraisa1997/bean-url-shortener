@@ -15,54 +15,54 @@ function App() {
     const [urlDetailRows, setUrlDetailRows] = useState([]);
 
     useEffect(() => {
-        // Use your authentication logic here
-        axios.get("http://localhost:3000/user/me", {
-            headers: {
-                Authorization: "Bearer " + localStorage.getItem("userToken")
-            }
-        })
-        .then(response => {
-            const userData = response.data.data.user;
-            if (userData && userData.userRole === "user") {
-                setAuthenticatedUser(true);
-            }else if(userData && userData.userRole === "admin"){
-                setAuthenticatedAdmin(true);
-            } else {
+        const fetchData = async () => {
+            try {
+                const response = await axios.get("http://localhost:3000/user/me", {
+                    headers: {
+                        Authorization: "Bearer " + localStorage.getItem("userToken")
+                    }
+                });
+
+                const userData = response.data.data.user;
+                if (userData && userData.userRole === "user") {
+                    setAuthenticatedUser(true);
+                } else if (userData && userData.userRole === "admin") {
+                    setAuthenticatedAdmin(true);
+                } else {
+                    setAuthenticatedUser(false);
+                }
+            } catch (error) {
+                console.error("Error while reading claims from jwt", error);
                 setAuthenticatedUser(false);
+                setAuthenticatedAdmin(false);
             }
-        })
-        .catch(error => {
-            console.log("error while reading claims from jwt",error);
-            setAuthenticatedUser(false);
-            setAuthenticatedAdmin(false);
-        });
+        };
+
+        fetchData();
     }, []);
 
-    console.log("authenticatedUser",authenticatedUser);
-    console.log("authenticatedAdmin",authenticatedAdmin);
+    useEffect(() => {
+        const fetchUrlData = async () => {
+            try {
+                const response = await fetch("http://localhost:3000/url-shortener/resolutions/analytics", {
+                    method: "GET",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": "Bearer " + localStorage.getItem("userToken")
+                    }
+                });
 
-    useEffect(()=>{
-      fetch("http://localhost:3000/url-shortener/resolutions/analytics", { 
-        method: "GET",
-        headers:{
-            "Content-Type":"application/json",
-            "Authorization": "Bearer " + localStorage.getItem("userToken")
-        }
-     })
-      .then(response => response.json())
-      .then(data => {
-        // Log the response
-        console.log("API Response: herehereherehere", data);
-    
-        // Set the response data to your state or variable
-        setUrlDetailRows(data);
-      })
-      .catch(error => {
-        // Handle errors if any
-        console.error("Error fetching data:", error);
-      });
-    
-    },[])
+                const data = await response.json();
+                console.log("API Response:", data);
+                setUrlDetailRows(data);
+            } catch (error) {
+                console.error("Error fetching data:", error);
+            }
+        };
+
+        fetchUrlData();
+    }, []);
+
 
     return (
         <div className="app-container"> {/* Wrap the entire app */}

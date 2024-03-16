@@ -100,26 +100,28 @@ export default function CollapsibleTable() {
   const [rows, setRows] = useState([]);
 
   useEffect(() => {
-    axios.get("http://localhost:3000/url-shortener/resolutions/analytics/all", {
-        headers: {
-            Authorization: "Bearer " + localStorage.getItem("userToken")
+    const fetchData = async () => {
+        try {
+            const response = await axios.get("http://localhost:3000/url-shortener/resolutions/analytics/all", {
+                headers: {
+                    Authorization: "Bearer " + localStorage.getItem("userToken")
+                }
+            });
+
+            // Instead of directly mutating state variable rows, we create a new array tableData and update state using setRows
+            const tableData = [];
+            for (let user in response.data) {
+                tableData.push(createData(response.data[user].user.id, response.data[user].user.username, response.data[user].allShortenedUrlDetails));
+            }
+            setRows(tableData);
+        } catch (error) {
+            // Handle errors
+            console.error("Error fetching data:", error);
         }
-    })
-    .then(response => {
-      // In React, you should avoid mutating state variables directly, as it can lead to unexpected behavior and bugs.
-      // hence the tableData variable
-      // Instead, you should use the setRows function provided by useState to update the state variable rows.
-      const tableData = [];
-      for (let user in response.data) {
-        tableData.push(createData(response.data[user].user.id, response.data[user].user.username, response.data[user].allShortenedUrlDetails));
-      }
-      setRows(tableData);
-    })
-    .catch(error => {
-      // Handle errors
-      console.error("Error fetching data:", error);
-    });
-  }, []);
+    };
+
+    fetchData();
+}, []);
 
 
   return (

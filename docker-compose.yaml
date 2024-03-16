@@ -31,7 +31,7 @@ services:
     image: redis:7.2.3-alpine3.19
     container_name: database-redis
     ports: 
-      - "6379:6379"
+      - "6384:6379"
     volumes:
       - ./db/redis/data:/data
 

@@ -26,40 +26,37 @@ function BeanUrlAppBar (){
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate()
 
-    useEffect(()=>{
-        axios.get("http://localhost:3000/user/me",{
-            headers:{
-                Authorization: "Bearer " + localStorage.getItem("userToken")
-            }
-        })
-        .then(response => {
-            console.log("response.data");
-            console.log(response.data);
-            console.log("response.data");
-            // setLoading(false);
-            // console.log("response", response);
-            // console.log("response.data", response.data);
-            return response.data.data
-        })
-        .then(data=>{
-            console.log("data", data);
-            console.log("datauser", data.user);
-            console.log("datauser", data.user.userName);
-            // setUserName(data)
-            setUserName(data.user.userName)
-            setLoading(false); 
-        })
-        .catch(error=>{
-            setLoading(false); 
-            if (error.response && error.response.status === 401) {
-                console.error("Unauthorized: ", error);
-                // navigate("/home")
-            } else {
-                console.error("Error during /user/me validation route", error);
-            }
-        })
-    },[])
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const response = await axios.get("http://localhost:3000/user/me", {
+                    headers: {
+                        Authorization: "Bearer " + localStorage.getItem("userToken")
+                    }
+                });
 
+                console.log("response.data", response.data);
+
+                const data = response.data.data;
+                console.log("data", data);
+                console.log("datauser", data.user);
+                console.log("datauser", data.user.userName);
+
+                setUserName(data.user.userName);
+                setLoading(false);
+            } catch (error) {
+                setLoading(false);
+                if (error.response && error.response.status === 401) {
+                    console.error("Unauthorized: ", error);
+                    // navigate("/home")
+                } else {
+                    console.error("Error during /user/me validation route", error);
+                }
+            }
+        };
+
+        fetchData();
+    }, []);
 
     const handleUserSignInClick = ()=>{
         navigate("/signin")
