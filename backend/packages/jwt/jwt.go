@@ -22,7 +22,7 @@
 package jwt
 
 import (
-	"github.com/golang-jwt/jwt"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 // UserJWTTokenData Stores the user information
@@ -32,5 +32,5 @@ type UserJWTTokenData struct {
 	UserName  string `json:"userName"`
 	UserRole  string `json:"userRole"`
 	/* Add your own data here */
-	jwt.StandardClaims
+	jwt.RegisteredClaims
 }

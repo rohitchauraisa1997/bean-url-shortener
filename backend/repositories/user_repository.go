@@ -68,7 +68,7 @@ func (r *userRepository) GetUserTTL(c context.Context, userId string) (time.Dura
 		panic(err)
 	}
 	if keyExists {
-		ttl, err := r.userRepo.Ttl(c, userKeyToSearchFor)
+		ttl, err := r.userRepo.TTL(c, userKeyToSearchFor)
 		if err != nil {
 			panic(err)
 		}

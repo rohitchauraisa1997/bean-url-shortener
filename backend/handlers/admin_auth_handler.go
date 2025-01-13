@@ -9,7 +9,8 @@ import (
 
 	jwtdata "backend/packages/jwt"
 
-	"github.com/golang-jwt/jwt"
+	"github.com/golang-jwt/jwt/v5"
+
 	"github.com/labstack/echo/v4"
 	"github.com/pkg/errors"
 	berror "github.com/retail-ai-inc/bean/v2/error"
@@ -62,8 +63,8 @@ func (h *adminauthHandler) AdminSignIn(c echo.Context) error {
 		UserEmail: admin.Email,
 		UserName:  admin.Username,
 		UserRole:  "admin",
-		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: time.Now().Add(viper.GetDuration("jwt.expiration")).Unix(),
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(viper.GetDuration("jwt.expiration"))),
 		},
 	}
 

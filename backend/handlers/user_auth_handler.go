@@ -11,7 +11,8 @@ import (
 
 	jwtdata "backend/packages/jwt"
 
-	"github.com/golang-jwt/jwt"
+	"github.com/golang-jwt/jwt/v5"
+
 	"github.com/labstack/echo/v4"
 	"github.com/pkg/errors"
 	berror "github.com/retail-ai-inc/bean/v2/error"
@@ -92,8 +93,8 @@ func (h *userauthHandler) UserSignIn(c echo.Context) error {
 		UserEmail: user.Email,
 		UserName:  user.Username,
 		UserRole:  user.Role,
-		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: time.Now().Add(viper.GetDuration("jwt.expiration")).Unix(),
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(viper.GetDuration("jwt.expiration"))),
 		},
 	}
 
